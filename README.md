@@ -30,3 +30,7 @@ Orders - Получение списка заказов
 test_get_orders_list_returns_200_and_orders — проверяет получение списка заказов, ожидается статус 200 и наличие ключа "orders", который должен быть списком.
 Orders - Создание заказа
 test_create_order_with_color_returns_201_and_track — проверяет создание заказа с разными цветами, ожидается статус 201 и наличие ключа "track" в ответе.
+
+test_courier_is_created - проверка что курьер создан
+
+test_get_courier_id - id созданного курьера

@@ -61,3 +61,21 @@ class TestCourierLogin:
             f"Ожидали сообщение об ошибке при пустом поле '{empty_field}', "
             f"получили: {response.text}"
         )
+    @allure.title('Получение ID созданного курьера')
+    @allure.description(
+        'Тест логинит курьера через фикстуру create_unique_courier и проверяет, что в ответе есть ключ "id". '
+        'Возвращает id курьера.'
+    )
+    def test_get_courier_id(self, create_unique_courier):
+        payload = courier_login_payload(
+            create_unique_courier["login"],
+            create_unique_courier["password"]
+        )
+        response = requests.post(f"{BASE_URL}{LOGIN_COURIER}", json=payload)
+        assert response.status_code == 200, f"Ожидали 200, получили {response.status_code}. Ответ: {response.text}"
+        body = response.json()
+        assert "id" in body, f"Ожидали ключ 'id' в ответе, получили: {body}"
+        
+        courier_id = body["id"]
+        print(f"ID созданного курьера: {courier_id}")
+        return courier_id

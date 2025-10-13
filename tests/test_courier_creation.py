@@ -58,3 +58,22 @@ class TestCourierCreation:
         else:
             assert response.status_code == 201
             assert response.json() == {"ok": True}
+    @allure.title('Курьер создаётся успешно')
+    @allure.description(
+        'Тест проверяет, что курьер создаётся через API. '
+        'Ожидается статус 201 и тело ответа {"ok": True}, что подтверждает факт создания.'
+    )
+    def test_courier_is_created(self):
+        payload = new_courier_payload()
+        response = requests.post(f"{BASE_URL}{CREATE_COURIER}", json=payload, timeout=10)
+
+        # Проверяем статус
+        assert response.status_code == 201, f"Ожидали 201, получили {response.status_code}"
+        
+        # Проверяем тело ответа
+        body = response.json()
+        assert body == {"ok": True}, f"Ожидали {{'ok': True}}, получили {body}"
+
+        # Дополнительно выводим логин созданного курьера
+        print(f"Курьер создан: login={payload['login']}, firstName={payload['firstName']}")
+
