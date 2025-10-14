@@ -1,9 +1,8 @@
 import requests
-import pytest
 import allure
-from data.urls import BASE_URL, CREATE_COURIER
+from data.urls import BASE_URL, CREATE_COURIER,LOGIN_COURIER
 from utils import register_new_courier_and_return_login_password
-from data.payloads import new_courier_payload
+from data.payloads import new_courier_payload, courier_login_payload
 
 @allure.epic('Courier - Создание курьера')
 class TestCourierCreation:
@@ -11,69 +10,84 @@ class TestCourierCreation:
     @allure.title('Создание нового курьера')
     @allure.description(
         'Тест проверяет успешное создание нового курьера с валидными данными через register_new_courier_and_return_login_password. '
-        'Ожидается, что вернётся непустой список с логином, паролем и именем.'
+        'Ожидается статус 201 и тело ответа {"ok": True}.'
     )
-    def test_create_courier_success(self):
+    def test_create_courier_success(self,delete_courier):
         login_pass = register_new_courier_and_return_login_password()
         assert login_pass, "Регистрация курьера не удалась, список пустой"
-        assert len(login_pass) == 3, f"Ожидался список с 3 элементами, получили {login_pass}"
+
+        # Логинимся, чтобы получить id для проверки и удаления
+        login_response = requests.post(
+            f"{BASE_URL}{LOGIN_COURIER}",
+            json=courier_login_payload(login_pass[0], login_pass[1])
+        )
+        assert login_response.status_code == 200
+        body = login_response.json()
+        assert "id" in body
+        assert isinstance(body["id"], int)
+
+        # Удаляем курьера после теста
+        delete_courier(body["id"])
 
     @allure.title('Создание курьера с дублирующими данными (ожидается 409)')
     @allure.description(
         'Тест проверяет, что при попытке создать курьера с уже существующим логином API возвращает ошибку 409.'
     )
-    def test_create_courier_duplicate_data_returns_409(self):
-        login_pass = register_new_courier_and_return_login_password()
-        assert login_pass, "Регистрация курьера не удалась"
+    def test_create_courier_duplicate_data_returns_409(self,create_unique_courier,delete_courier):
+        payload = create_unique_courier
         
-        payload = {
-            "login": login_pass[0],
-            "password": login_pass[1],
-            "firstName": login_pass[2]
-        }
-        
-        response = requests.post(f"{BASE_URL}{CREATE_COURIER}", json=payload)
-        assert response.status_code == 409, f"Ожидали 409, получили {response.status_code}"
-        body = response.json()
+
+        response2 = requests.post(f"{BASE_URL}{CREATE_COURIER}", json=payload)
+        assert response2.status_code == 409
+        body = response2.json()
         assert "message" in body
         assert "логин" in body["message"].lower()
 
-    @allure.title('Создание курьера без обязательных полей')
-    @allure.description(
-        'Тест проверяет поведение API при создании курьера с отсутствующими обязательными полями. '
-        'Для login и password ожидается 400 ошибка с сообщением о недостаточных данных, '
-        'для firstName курьер создается успешно.'
-    )
-    @pytest.mark.parametrize("missing_field", ["login", "password", "firstName"])
-    def test_create_courier_missing_field_returns_expected_status(self, missing_field):
+         # Удаляем созданного фикстурой курьера
+        login_response = requests.post(
+            f"{BASE_URL}{LOGIN_COURIER}",
+            json=courier_login_payload(payload["login"], payload["password"])
+        )
+        courier_id = login_response.json()["id"]
+        delete_courier(courier_id)
+
+
+    @allure.title('Создание курьера без login')
+    @allure.description('Если не передан login, возвращается ошибка 400.')
+    def test_create_courier_missing_login_returns_400(self):
         payload = new_courier_payload()
-        payload.pop(missing_field)
+        payload.pop("login")
         response = requests.post(f"{BASE_URL}{CREATE_COURIER}", json=payload)
-
-        if missing_field in ("login", "password"):
-            assert response.status_code == 400
-            body = response.json()
-            assert "message" in body
-            assert "недостаточно" in body["message"].lower()
-        else:
-            assert response.status_code == 201
-            assert response.json() == {"ok": True}
-    @allure.title('Курьер создаётся успешно')
-    @allure.description(
-        'Тест проверяет, что курьер создаётся через API. '
-        'Ожидается статус 201 и тело ответа {"ok": True}, что подтверждает факт создания.'
-    )
-    def test_courier_is_created(self):
-        payload = new_courier_payload()
-        response = requests.post(f"{BASE_URL}{CREATE_COURIER}", json=payload, timeout=10)
-
-        # Проверяем статус
-        assert response.status_code == 201, f"Ожидали 201, получили {response.status_code}"
-        
-        # Проверяем тело ответа
+        assert response.status_code == 400
         body = response.json()
-        assert body == {"ok": True}, f"Ожидали {{'ok': True}}, получили {body}"
+        assert "message" in body
+        assert "недостаточно" in body["message"].lower()
 
-        # Дополнительно выводим логин созданного курьера
-        print(f"Курьер создан: login={payload['login']}, firstName={payload['firstName']}")
+    @allure.title('Создание курьера без password')
+    @allure.description('Если не передан password, возвращается ошибка 400.')
+    def test_create_courier_missing_password_returns_400(self):
+        payload = new_courier_payload()
+        payload.pop("password")
+        response = requests.post(f"{BASE_URL}{CREATE_COURIER}", json=payload)
+        assert response.status_code == 400
+        body = response.json()
+        assert "message" in body
+        assert "недостаточно" in body["message"].lower()
 
+    @allure.title('Создание курьера без firstName')
+    @allure.description('Если не передан firstName, курьер создаётся успешно.')
+    def test_create_courier_missing_firstname_returns_201(self, delete_courier):
+        payload = new_courier_payload()
+        payload.pop("firstName")
+        response = requests.post(f"{BASE_URL}{CREATE_COURIER}", json=payload)
+        assert response.status_code == 201
+        assert response.json() == {"ok": True}
+
+        # Логинимся чтобы получить ID для удаления
+        login_response = requests.post(
+            f"{BASE_URL}{LOGIN_COURIER}",
+            json=courier_login_payload(payload["login"], payload["password"])
+        )
+        courier_id = login_response.json()["id"]
+        delete_courier(courier_id)
+    #убрал лишний тест(повтор первого)

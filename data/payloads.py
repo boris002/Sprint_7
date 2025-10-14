@@ -16,7 +16,7 @@ def courier_login_payload(login, password):
         "login": login,
         "password": password
     }
-
+    
 def order_payload(color=None):
     payload = {
         "firstName": "John",

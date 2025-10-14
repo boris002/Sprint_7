@@ -50,7 +50,6 @@ class TestCourierLogin:
         payload[empty_field] = ""
 
         response = requests.post(f"{BASE_URL}{LOGIN_COURIER}", json=payload)
-        print(f"\nОтвет сервера (пустое поле {empty_field}): {response.status_code} -> {response.text}")
 
         assert response.status_code == 400, (
             f"Ожидали 400 при пустом поле '{empty_field}', "
@@ -75,7 +74,3 @@ class TestCourierLogin:
         assert response.status_code == 200, f"Ожидали 200, получили {response.status_code}. Ответ: {response.text}"
         body = response.json()
         assert "id" in body, f"Ожидали ключ 'id' в ответе, получили: {body}"
-        
-        courier_id = body["id"]
-        print(f"ID созданного курьера: {courier_id}")
-        return courier_id
