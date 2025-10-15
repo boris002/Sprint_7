@@ -1,0 +1,19 @@
+# виртуальное окружение
+venv/
+.env/
+
+# кэш pytest
+.pytest_cache/
+__pycache__/
+
+# временные и лог-файлы
+*.log
+*.tmp
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# macOS системные файлы
+.DS_Store
